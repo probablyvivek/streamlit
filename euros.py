@@ -4,6 +4,7 @@ import streamlit as st
 from mplsoccer import VerticalPitch
 from dotenv import load_dotenv
 import psycopg2
+from matplotlib import font_manager
 
 def main():
     load_dotenv(dotenv_path='secret.env', override=True)
@@ -126,10 +127,15 @@ def main():
 
     team = st.selectbox("Select a team", df['team_name'].unique())
 
+    # Filter players based on selected team and sort by number of goals scored
+    team_players = df[(df['team_name'] == team) & (df['name'] != 'Own Goal')]
+    player_goal_counts = team_players.groupby('name')['is_goal'].sum().sort_values(ascending=False)
+    sorted_players = player_goal_counts.index.tolist()
+
     # Single-select for players
     player = st.selectbox(
         "Select a player", 
-        options=df[df['team_name'] == team]['name'].unique()
+        options=sorted_players
     )
 
     # Filter data based on selections
@@ -145,12 +151,14 @@ def main():
         size = 300 if not shot['is_goal'] else 600
         pitch.scatter(shot['x_coordinate'], shot['y_coordinate'], ax=ax, color=color, s=size, edgecolors='black', alpha=0.9, marker=marker)
 
+    # Custom font properties
+    custom_font = font_manager.FontProperties(family='DejaVu Sans', weight='bold')
+
     # Player and team annotation in the lower left corner of the plot
     player_name = player  # Assuming 'player' contains the selected player's name
     team_name = team  # Assuming 'team' contains the selected team's name
-    ax.text(0.05, 0.02, f"{player_name}\n", fontsize=35, ha='left', va='bottom', transform=ax.transAxes, color='black', style='italic', fontname='Arial Black')
-    ax.text(0.05, 0.045, f"{team_name}", fontsize=30, ha='left', va='bottom', transform=ax.transAxes, color='black', style='italic', fontname='Arial Black')
-
+    ax.text(0.05, 0.02, f"{player_name}\n", fontsize=35, ha='left', va='bottom', transform=ax.transAxes, color='black', style='italic', fontproperties=custom_font)
+    ax.text(0.05, 0.045, f"{team_name}", fontsize=30, ha='left', va='bottom', transform=ax.transAxes, color='black', style='italic', fontproperties=custom_font)
 
     st.pyplot(fig)
 
@@ -165,7 +173,7 @@ def main():
     st.download_button(
         label="Download Shot Map as JPEG",
         data=buf,
-        file_name="shot_map.jpeg",
+        file_name=f"{player_name}_shotmap.jpeg",
         mime="image/jpeg"
     )
 
